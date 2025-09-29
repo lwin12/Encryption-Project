@@ -38,8 +38,8 @@ Due to time constraints, we will be using a thumb drive to share the files.
 7. Private Key: *(d, n)* --> Used for decryption.
 
 # Tasks
-- Code to generate 2 Random Prime Numbers, string gen_2_Prime();
-- Code to generate Public & Private keys, void gen_Pri_Pub(int n);  
+- Code to generate 2 Random Prime Numbers, *string gen_2_Prime();*
+- Code to generate Public & Private keys, *void gen_Pri_Pub(int n);*  
   For now use these for the 2nd Tasks:  
   *p = 1299827*  
   *q = 1300033*  
