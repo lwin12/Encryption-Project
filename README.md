@@ -1,5 +1,17 @@
-# Encryption-Project
-Aim of this project is to be able to encrypt a simple text file and send it to another computer on the same network.
+Aim of this project is to be able to encrypt a simple text file and send it to another computer on the same network.  
+Due to time constraints, we will be using a thumb drive to share the files.  
+
+*Let's assume Bob wants to send Jane a text file.*  
+
+1. *Jane must generate a public and private key.*  
+   *Jane will then keep the private key to herself and tell Bob her public key.*  
+
+2. *Bob receives Jane's public key.*  
+   *Bob proceeds to encrypt text file using Jane's Public key.*  
+   *Bob sends the encrypted text file to Jane.*  
+   
+3. *Jane receives Bob's encryped text file.*  
+   *Jane decrypts the encryped text file using her private key.*
 
 # Generating Public & Private Keys
 1. Pick two large prime numbers *p, q*.  
