@@ -36,3 +36,7 @@ Due to time constraints, we will be using a thumb drive to share the files.
 
 6. Public Key: *(e, n)* --> Used for encryption.
 7. Private Key: *(d, n)* --> Used for decryption.
+
+# Tasks
+- Code to generate 2 Random Prime Numbers
+- Code to generate Public & Private keys 
