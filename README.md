@@ -23,7 +23,7 @@ Due to time constraints, we will be using a thumb drive to share the files.
    n is now part of both public and private key.
 
 3. Compute Euler's totient  
-   *φ(n) = (p−1)(q−1)*
+   *φ(n) = (p−1)(q−1)*  
    This is used to determine valid exponents.
 
 4. Choose the public exponent *e*  
