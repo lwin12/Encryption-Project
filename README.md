@@ -73,7 +73,7 @@ If you opened existing code, your structure should look like:
 <img width="385" height="289" alt="image" src="https://github.com/user-attachments/assets/6b1e5456-780f-4c8f-8649-849d87d35340" />
 
 
-## ENSURE BUILD PLATFORM IN VS2022 IS X64:
+## ENSURE BUILD PLATFORM IN VS2022 IS x64:
 
 1. Look at the top toolbar
 2. Find the dropdown that says "x86" or "Win32"
