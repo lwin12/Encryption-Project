@@ -74,7 +74,8 @@ If you opened existing code, your structure should look like:
 
 ##  Crypto++ Libraries setup
 Please refer to the AES branch to setup the library.
-Alternately you can refer to this youtube video on how to setup the Crypto++ library. 
+
+Alternately you can refer to this youtube video on how to setup the Crypto++ library (Click on the image to go to the youtube video): 
 [![Watch the video](https://img.youtube.com/vi/5XE4zEN-WKg/0.jpg)](https://www.youtube.com/watch?v=5XE4zEN-WKg)
 
 
