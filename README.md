@@ -72,6 +72,12 @@ If you opened existing code, your structure should look like:
 
 <img width="385" height="289" alt="image" src="https://github.com/user-attachments/assets/6b1e5456-780f-4c8f-8649-849d87d35340" />
 
+##  Crypto++ Libraries setup
+Please refer to the AES branch to setup the library.
+Alternately you can refer to this youtube video on how to setup the Crypto++ library. 
+[![Watch the video](https://img.youtube.com/vi/5XE4zEN-WKg/0.jpg)](https://www.youtube.com/watch?v=5XE4zEN-WKg)
+
+
 
 ## ENSURE BUILD PLATFORM IN VS2022 IS x64:
 
