@@ -6,6 +6,7 @@
  */
 
 #include "rsa.h"
+
 using namespace std;
 
 
@@ -28,7 +29,7 @@ void generatePublicKey() {
 		}
 	}
 
-	cout << "\n[INFO] Generating RSA-1024 key pair...\n";
+	cout << "\n[INFO] Generating RSA-2048 key pair...\n";
 
 
 	gmp_randstate_t state;
@@ -52,8 +53,8 @@ void generatePublicKey() {
 
 	/*
 	* ^ after this both p and q are randomly chosen large primes that are about 1024 bits long.
-	* when p and q are 1024 bits long each , when computing its product 'n' we generate a 1024 bit RSA key
-	* NOTE : We are doing this for demo purposes but in the actual world, 1024 is considered weak, secure systems use 2048 or 4096 bit RSA keys
+	* when p and q are 1024 bits long each , when computing its product 'n' we generate a 2048 bit RSA key
+	* 
 	*/
 
 	// save p and q values to a hidden internal file for later private key generation
@@ -106,6 +107,7 @@ void generatePublicKey() {
 
 }
 
+
 void generatePrivateKey() {
 
 
@@ -127,18 +129,24 @@ void generatePrivateKey() {
 
 	cout << "\n[SECURITY] Password required to generate private key\n\n";
 
+
 	string password;
 	int tries = 0;
 	bool access = false;
 
 
 	while (tries < 3) {
+		password.clear();
+		char ch;
 		cout << "Enter password: ";
-		cin >> password;
+		string password = getMaskedPassword();
+
+		// check password
 		if (password == "Group7") {
 			access = true;
 			break;
 		}
+
 		tries++;
 		cout << "\nIncorrect password. " << (3 - tries) << " tries left.\n";
 	}
@@ -243,3 +251,6 @@ void generatePrivateKey() {
 		return;
 
 }
+
+
+

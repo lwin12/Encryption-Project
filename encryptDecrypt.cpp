@@ -1,17 +1,41 @@
-
+#pragma once
 /*
  * Author: Darrshini
  * Date: 10/10/2025
- * Description: This program has functions for encrypting and decrypting AES key
+ * Description: This is a shared header file for other cpp files
  */
 
 #include "rsa.h"
+#include <gmp.h>
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
+#include <random>
+#include <Windows.h>   // For Sleep()
+#include <conio.h>     // For _getch()
+#include <cryptlib.h>
+#include <sha.h>
+#include <hex.h>
+#include <filters.h>
 
-
+using namespace CryptoPP;
+using CryptoByte = CryptoPP::byte;
 using namespace std;
+namespace fs = std::filesystem;
 
-// convert hex string to byte vector
- vector<uint8_t> hexToBytes(const string& hex) {
+// --- Global variable to store temporary password in memory ---
+string g_tempPassword;
+
+// --- Hidden folder and file paths ---
+const string hiddenFolder = ".security";
+const string rsaHashFile = hiddenFolder + "/password_hash_RSA.txt";
+const string tempHashFile = "temp_pass_RSA.txt";
+
+// --- Hex/byte utilities ---
+vector<uint8_t> hexToBytes(const string& hex) {
     vector<uint8_t> bytes;
     for (size_t i = 0; i < hex.length(); i += 2) {
         string byteString = hex.substr(i, 2);
@@ -20,8 +44,7 @@ using namespace std;
     return bytes;
 }
 
-// convert byte vector to hex string
- string bytesToHex(const vector<uint8_t>& bytes) {
+string bytesToHex(const vector<uint8_t>& bytes) {
     stringstream ss;
     ss << hex << setfill('0');
     for (auto b : bytes)
@@ -29,205 +52,230 @@ using namespace std;
     return ss.str();
 }
 
- bool isValidHex(const string& str) {
-    for (char c : str) {
-        if (!isxdigit(c))
-            return false;
-    }
+bool isValidHex(const string& str) {
+    for (char c : str) if (!isxdigit(c)) return false;
     return true;
 }
 
+// --- SHA-256 hashing ---
+string hashPassword(const string& password) {
+    SHA256 hash;
+    CryptoByte digest[SHA256::DIGESTSIZE];
+    hash.Update((const CryptoByte*)password.data(), password.size());
+    hash.Final(digest);
 
+    string hexDigest;
+    HexEncoder encoder(new StringSink(hexDigest));
+    encoder.Put(digest, sizeof(digest));
+    encoder.MessageEnd();
+    return hexDigest;
+}
+
+// --- Save hashed password temporarily ---
+void saveTemporaryPlainPassword(const string& password) {
+    const string tempPlainFile = "temp_pass_RSA_plain.txt";
+    ofstream tempOut(tempPlainFile, ios::out | ios::trunc);
+    if (tempOut) tempOut << password << endl;
+    tempOut.close();
+
+    cout << "\n[INFO] Temporary plain password saved to '" << tempPlainFile
+        << "' for 30 seconds. Please save it elsewhere!\n";
+
+    for (int i = 30; i >= 1; i--) {
+        cout << "\rTime left: " << i << " seconds " << flush;
+        Sleep(1000);
+    }
+
+    if (fs::exists(tempPlainFile))
+        fs::remove(tempPlainFile);
+
+    smoothClear();
+    cout << "[INFO] Temporary plain password file removed for security.\n\n";
+}
+
+// --- Save hashed password persistently ---
+void saveHashedPassword(const string& password) {
+    if (!fs::exists(hiddenFolder)) fs::create_directory(hiddenFolder);
+    string hash = hashPassword(password);
+    ofstream out(rsaHashFile, ios::out | ios::trunc);
+    if (out) { out << hash << endl; out.close(); }
+}
+
+// --- Verify password ---
+bool verifyPassword(const string& input) {
+    if (!fs::exists(rsaHashFile)) {
+        cout << "\n[ERROR] Hidden password hash not found!\n";
+        return false;
+    }
+    ifstream hashIn(rsaHashFile);
+    string storedHash; getline(hashIn, storedHash); hashIn.close();
+    string inputHash = hashPassword(input);
+    return (inputHash == storedHash);
+}
+
+// --- Encrypt AES key ---
 void encryptAESKey() {
-   
     if (!fileExists("public_key.txt")) {
-        cout << "\n[ERROR] Public key not found!\n";
-        cout << "Pls generate public key first (Option 1).\n";
+        cout << "\n[ERROR] Public key not found!\nPlease generate public key first (Option 1).\n";
         return;
     }
 
     ifstream in("public_key.txt");
-
     string n_value, e_value;
-    getline(in, n_value);
-    getline(in, e_value);
-    in.close();
-
+    getline(in, n_value); getline(in, e_value); in.close();
     mpz_set_str(rsa.n, n_value.c_str(), 16);
     mpz_set_str(rsa.e, e_value.c_str(), 16);
 
-    string aesKey;
-    bool validInput = false;
-
+    string aesKey; bool validInput = false;
     while (!validInput) {
-        cout << "\nEnter AES-128 Key (32 hex): ";
-        cin >> aesKey;
-
-        // Remove spaces if any
+        cout << "\nEnter AES-128 Key (32 hex): "; cin >> aesKey;
         aesKey.erase(remove(aesKey.begin(), aesKey.end(), ' '), aesKey.end());
 
-        // Validate hex input
-        if (!isValidHex(aesKey)) {
-            cout << "[ERROR] Invalid input! Pls enter only hexadecimal characters (0-9, A-F).\n";
-            continue;
-        }
-
-        // Warn if key is too long
-        if (aesKey.length() > 32) {
-            cout << "[WARNING] Key is longer than 128 bits. It will be reduced to 32 characters.\n";
-            aesKey = aesKey.substr(0, 32);
-        }
-
+        if (!isValidHex(aesKey)) { cout << "[ERROR] Invalid input! Only hexadecimal (0-9, A-F).\n"; continue; }
+        if (aesKey.length() > 32) { cout << "[WARNING] Key longer than 128 bits. Reduced to 32 characters.\n"; aesKey = aesKey.substr(0, 32); }
         validInput = true;
     }
 
-
     transform(aesKey.begin(), aesKey.end(), aesKey.begin(), ::toupper);
-    if (aesKey.length() % 2 != 0)
-        aesKey = "0" + aesKey; // ensure even length
+    if (aesKey.length() % 2 != 0) aesKey = "0" + aesKey;
 
     cout << "\n[INFO] Original AES Key: " << aesKey << endl;
-    cout << "\n[INFO] Encrypting using RSA...\n";
+    cout << "[INFO] Encrypting using RSA...\n";
 
-
-    // Convert to byte vector
     vector<uint8_t> aesBytes = hexToBytes(aesKey);
+    while (aesBytes.size() < 16) aesBytes.insert(aesBytes.begin(), 0x00);
+    aesBytes.insert(aesBytes.begin(), 0x01); // padding
 
-    // add a pad of 16 bytes for AES-128 
-    while (aesBytes.size() < 16)
-        aesBytes.insert(aesBytes.begin(), 0x00);
-
-    // Add simple padding byte 0x01 at the start
-    aesBytes.insert(aesBytes.begin(), 0x01);
-    
-    // Import padded bytes into mpz_t
     mpz_import(rsa.m, aesBytes.size(), 1, 1, 1, 0, aesBytes.data());
+    if (mpz_cmp(rsa.m, rsa.n) >= 0) { cout << "[ERROR] AES key exceeds RSA modulus!\n"; return; }
 
-    // ensure m < n -- m value bineg larger than n happens in rare cases but good to check 
-    if (mpz_cmp(rsa.m, rsa.n) >= 0) {
-        cout << "\n[ERROR] AES key value excceds RSA modulus!\n";
-        cout << "\n[ERROR] Generate larger RSA keys (change the keygen values to larger one in code).\n";
-        return;
-    }
-    // Encrypt
     mpz_powm(rsa.cipher, rsa.m, rsa.e, rsa.n);
-
     char* cipher_str = mpz_get_str(NULL, 16, rsa.cipher);
-    ofstream out("encrypted_aes.txt");
-    out << cipher_str << endl;
-    out.close();
-    
+
+    ofstream out("encrypted_aes.txt"); out << cipher_str << endl; out.close();
+
+    g_tempPassword = generateRandomPassword(10);
+    saveHashedPassword(g_tempPassword);
+    saveTemporaryPlainPassword(g_tempPassword);
+
+    cout << "\n[INFO] AES key encrypted successfully!\n";
+    cout << "Encrypted Ciphertext:\n" << cipher_str << endl;
 
     printSeparator();
-    cout << "[SUCCESS] AES key encrypted successfully!\n";
-    cout << "\nEncrypted Ciphertext:\n" << cipher_str << endl;
-    cout << "\nSaved to: 'encrypted_aes.txt'\n";
+    cout << "Encrypted AES Key Saved to: 'encrypted_aes.txt'\n";
     printSeparator();
+
     free(cipher_str);
 }
 
+// --- Decrypt AES key ---
 void decryptAESKey() {
+    printSeparator(); cout << "       AES KEY DECRYPTION\n"; printSeparator();
 
-    printSeparator();
-    cout << "       AES KEY DECRYPTION\n";
-    printSeparator();
-
-    // Check if private key exists
-    if (!fileExists("private_key.txt")) {
-        cout << "\n[ERROR] Private key not found!\n";
-        cout << "Please generate private key first (Option 2 from main menu).\n";
-        return;
-    }
+    if (!fileExists("private_key.txt")) { cout << "\n[ERROR] Private key not found!\n"; return; }
 
     ifstream in("private_key.txt");
-   
     string n_value, d_value;
-    getline(in, n_value);
-    getline(in, d_value);
-    in.close();
-
+    getline(in, n_value); getline(in, d_value); in.close();
     mpz_set_str(rsa.n, n_value.c_str(), 16);
     mpz_set_str(rsa.d, d_value.c_str(), 16);
 
-    // check if encrypted aes key text file exists
-    if (!fileExists("encrypted_aes.txt")) {
-        cout << "\n[ERROR] Encrypted AES key not found!\n";
-        cout << "Please encrypt an AES key first.\n";
+    if (!fileExists("encrypted_aes.txt")) { cout << "\n[ERROR] Encrypted AES key not found!\n"; return; }
+
+    string enteredPassword; cout << "\nEnter the saved decryption password: ";
+    enteredPassword = getMaskedPassword(); cout << endl;
+
+    if (!verifyPassword(enteredPassword)) {
+        cout << "\n[ERROR] Incorrect password! Cannot decrypt AES key.\n";
         return;
     }
 
     ifstream enc("encrypted_aes.txt");
-    string ciphertext;
-    getline(enc, ciphertext);
-    enc.close();
+    string ciphertext; getline(enc, ciphertext); enc.close();
 
     mpz_set_str(rsa.cipher, ciphertext.c_str(), 16);
-
-
     cout << "\n[INFO] Encrypted Ciphertext:\n" << ciphertext << endl;
-    cout << "\n[INFO] Decrypting using RSA...\n\n";
+    cout << "[INFO] Decrypting using RSA...\n\n";
 
-    // Decrypt to rsa.m
     mpz_powm(rsa.m, rsa.cipher, rsa.d, rsa.n);
 
-    // Export decrypted number to bytes
     size_t count = 0;
-    //set correct buffer size, it if is too small it can cause data loss in the exported bytes which can cause mistmatch in the output
     vector<uint8_t> outBytes((mpz_sizeinbase(rsa.m, 2) + 7) / 8);
     mpz_export(outBytes.data(), &count, 1, 1, 1, 0, rsa.m);
     outBytes.resize(count);
 
+    if (!outBytes.empty() && outBytes[0] == 0x01) outBytes.erase(outBytes.begin());
+    while (outBytes.size() < 16) outBytes.insert(outBytes.begin(), 0x00);
 
-    // Remove padding byte (0x01)
-    if (!outBytes.empty() && outBytes[0] == 0x01)
-        outBytes.erase(outBytes.begin());
-    
+    if (outBytes.size() > 16) {
+        ptrdiff_t startIndex = static_cast<ptrdiff_t>(outBytes.size()) - 16;
+        outBytes = vector<uint8_t>(outBytes.begin() + startIndex, outBytes.end());
+    }
 
-    // Trim or pad to 16 bytes
-    while (outBytes.size() < 16)
-        outBytes.insert(outBytes.begin(), 0x00);
-    if (outBytes.size() > 16)
-        outBytes = vector<uint8_t>(outBytes.end() - 16, outBytes.end());
-
-    // Convert bytes to hex
     string finalAES = bytesToHex(outBytes);
     transform(finalAES.begin(), finalAES.end(), finalAES.begin(), ::toupper);
 
     printSeparator();
     cout << "[SUCCESS] Decryption completed!\n";
-    cout << "\nDecrypted AES Key: " << finalAES << endl;
+    cout << "Decrypted AES Key: " << finalAES << endl;
     printSeparator();
 }
 
-void encryptDecryptMenu() {
+void encryptDecryptMenu()
+{
     int choice;
-    do {
-        cout << "\n";
+
+    while (true)
+    {
+        smoothClear();   // *** New smooth clear ***
+
         printSeparator();
-        cout << "           RSA ENCRYPT & DECRYPT MENU\n";
+        cout << " RSA ENCRYPT & DECRYPT MENU\n";
         printSeparator();
-        cout << "SUB-MENU OPTIONS: \n";
+        cout << "SUB-MENU OPTIONS:\n";
         cout << "1. Encrypt AES Key\n";
         cout << "2. Decrypt AES Key\n";
         cout << "3. Back to Main menu\n";
         printSeparator();
         cout << "\nEnter your choice: ";
-        cin >> choice;
-        cin.ignore();
 
-        switch (choice) {
-        case 1: 
-            encryptAESKey(); 
-            break;
-        case 2: 
-            decryptAESKey(); 
-            break;
-        case 3: 
-            return;
-        default:
-            cout << "[ERROR] Invalid choice! Pls enter 1-3.\n";
+        cin >> choice;
+
+        // Prevent menu breaking from invalid input
+        if (cin.fail())
+        {
             cin.clear();
-            cin.ignore(100, '\n');
+            cin.ignore(1000, '\n');
+            cout << "\n[ERROR] Invalid input! Pls enter a number.\n";
+            Sleep(1200);
+            continue;
         }
-    } while (choice != 3);
+
+        cin.ignore(1000, '\n'); // Clear any leftover input
+
+        smoothClear();   // *** Clear before showing results ***
+
+        switch (choice)
+        {
+        case 1:
+            encryptAESKey();
+            cout << "\nPress ENTER to return to menu...";
+            cin.get();
+            break;
+
+        case 2:
+            decryptAESKey();
+            cout << "\nPress ENTER to return to menu...";
+            cin.get();
+            break;
+
+        case 3:
+            return;
+
+        default:
+            cout << "[ERROR] Invalid choice! Pls enter 1–3.\n";
+            Sleep(1200);
+            break;
+        }
+    }
 }
